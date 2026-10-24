@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <!-- PWA / 모바일 웹앱 설정 -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="부산김해경전철">
+    <meta name="theme-color" content="#004A99">
+
+    <title>부산김해경전철 스마트 사원 포털</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome 아이콘 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bglBlue: '#004A99',
+                        bglTeal: '#00A88F',
+                        bglDark: '#0f172a'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; user-select: none; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 flex justify-center items-center min-h-screen p-0 sm:p-4">
+
+    <!-- 모바일 앱 프레임 Container -->
+    <div class="w-full max-w-md bg-white min-h-screen sm:min-h-[844px] sm:h-[844px] sm:rounded-[40px] shadow-2xl flex flex-col overflow-hidden relative border-gray-200 border">
+
+        <!-- 상단 헤더 & 시계 -->
+        <header class="bg-bglBlue text-white pt-4 pb-3 px-5 shadow-md flex justify-between items-center relative z-10">
+            <div>
+                <div class="flex items-center space-x-2">
+                    <span class="bg-bglTeal text-xs font-bold px-2 py-0.5 rounded-full">BGL 현장원</span>
+                    <span id="current-time" class="text-xs text-blue-200 font-mono">00:00:00</span>
+                </div>
+                <h1 class="text-lg font-bold mt-1 tracking-tight flex items-center gap-1.5">
+                    <i class="fa-solid font-bold fa-train-subway text-bglTeal"></i> 부산김해경전철
+                </h1>
+            </div>
+            <button onclick="alert('긴급 관제 지시: 가야대역 PSD 점검 상태 확인 바람.')" class="relative p-2 text-yellow-300 hover:text-white transition">
+                <i class="fa-solid fa-bell text-xl"></i>
+                <span class="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-ping"></span>
+                <span class="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+            </button>
+        </header>
+
+        <!-- 메인 콘텐츠 영역 -->
+        <main class="flex-1 overflow-y-auto hide-scrollbar p-4 pb-32 bg-slate-50">
+
+            <!-- TAB 1: 홈 메인 (달력 및 근무) -->
+            <section id="tab-home" class="tab-content space-y-4">
+                
+                <!-- 미니 달력 위젯 -->
+                <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
+                    <div class="flex justify-between items-center px-1">
+                        <button onclick="changeMonth(-1)" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-600 transition">
+                            <i class="fa-solid fa-chevron-left text-xs"></i>
+                        </button>
+                        <h2 id="calendar-title" class="text-sm font-bold text-gray-800">2026년 10월</h2>
+                        <button onclick="changeMonth(1)" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-600 transition">
+                            <i class="fa-solid fa-chevron-right text-xs"></i>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-7 text-center text-[11px] font-bold text-gray-400">
+                        <span class="text-red-500">일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span class="text-blue-500">토</span>
+                    </div>
+
+                    <div id="calendar-grid" class="grid grid-cols-7 gap-1 text-center text-xs"></div>
+
+                    <div id="calendar-memo-box" class="mt-3 p-3 bg-blue-50/70 border border-blue-100 rounded-xl text-xs space-y-1">
+                        <p class="font-bold text-bglBlue flex items-center gap-1.5">
+                            <i class="fa-regular fa-calendar-days"></i> <span id="selected-date-text">날짜를 선택하세요</span>
+                        </p>
+                        <div id="daily-schedules" class="text-gray-700 pl-4 space-y-0.5"></div>
+                    </div>
+                </div>
+
+                <!-- 근무 배치 현황 (4조 2교대) -->
+                <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
+                    <div class="flex justify-between items-center border-b pb-2">
+                        <h2 class="text-sm font-bold text-gray-700 flex items-center">
+                            <i class="fa-regular fa-calendar-check text-bglTeal mr-1.5"></i> 오늘 근무 배치 (4조 2교대)
+                        </h2>
+                        <span id="shift-status-badge" class="text-[10px] bg-blue-100 text-bglBlue font-bold px-2 py-0.5 rounded-md">근무 시간</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 text-xs pt-1">
+                        <div id="role-day" class="p-3 rounded-xl border border-gray-100 bg-slate-50 flex justify-between items-center transition">
+                            <span class="text-gray-600 font-medium"><i class="fa-solid fa-sun text-amber-500 mr-1.5"></i> 주간 (09~18)</span>
+                            <span id="team-day" class="font-extrabold text-sm text-gray-800">3팀</span>
+                        </div>
+                        <div id="role-night" class="p-3 rounded-xl border border-gray-100 bg-slate-50 flex justify-between items-center transition">
+                            <span class="text-gray-600 font-medium"><i class="fa-solid fa-moon text-indigo-500 mr-1.5"></i> 야간 (18~09)</span>
+                            <span id="team-night" class="font-extrabold text-sm text-gray-800">4팀</span>
+                        </div>
+                        <div id="role-off" class="p-3 rounded-xl border border-gray-100 bg-slate-50 flex justify-between items-center transition">
+                            <span id="label-off" class="text-gray-600 font-medium"><i class="fa-solid fa-bed text-blue-400 mr-1.5"></i> 비번 (근무 중)</span>
+                            <span id="team-off" class="font-extrabold text-sm text-gray-800">1팀</span>
+                        </div>
+                        <div id="role-rest" class="p-3 rounded-xl border border-gray-100 bg-slate-50 flex justify-between items-center transition">
+                            <span class="text-gray-600 font-medium"><i class="fa-solid fa-umbrella-beach text-emerald-500 mr-1.5"></i> 휴무</span>
+                            <span id="team-rest" class="font-extrabold text-sm text-gray-800">2팀</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: 신입사원 매뉴얼 & 가이드 (새로 추가됨!) -->
+            <section id="tab-manual" class="tab-content hidden space-y-4">
+                <div class="bg-bglBlue text-white p-4 rounded-2xl shadow-sm space-y-1">
+                    <h2 class="text-sm font-bold flex items-center gap-1.5">
+                        <i class="fa-solid fa-book-open text-bglTeal"></i> 신입사원 필수 업무 가이드
+                    </h2>
+                    <p class="text-[11px] text-blue-100">입사 후 반드시 숙지해야 할 핵심 루틴과 매뉴얼입니다.</p>
+                </div>
+
+                <div class="space-y-3 text-xs">
+                    <!-- 카드 1 -->
+                    <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-2">
+                        <h3 class="font-bold text-bglBlue text-sm flex items-center gap-1.5">
+                            <i class="fa-solid fa-circle-check text-bglTeal"></i> 출근 및 인수인계 체크리스트
+                        </h3>
+                        <ul class="list-disc list-inside text-gray-600 space-y-1 pl-1">
+                            <li>출근 직후 전 근무자와 대면 인수인계 및 특이사항 확인</li>
+                            <li>종합관제실 특보 사항 및 당일 역사 기기 점검 현황 체크</li>
+                            <li>역사 내 안전 장비(소화기, AED) 이상 유무 확인</li>
+                        </ul>
+                    </div>
+
+                    <!-- 카드 2 -->
+                    <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-2">
+                        <h3 class="font-bold text-bglBlue text-sm flex items-center gap-1.5">
+                            <i class="fa-solid fa-calendar-day text-bglTeal"></i> 월별/일별 정기 업무 가이드
+                        </h3>
+                        <ul class="list-disc list-inside text-gray-600 space-y-1 pl-1">
+                            <li><strong>매월 1, 11, 21일:</strong> 수시 마감 업무 진행</li>
+                            <li><strong>매월 4일:</strong> 안전점검의 날 행사 및 시설물 점검</li>
+                            <li><strong>매월 15일:</strong> 안전용품 점검 실시</li>
+                            <li><strong>매월 말일:</strong> 월말 업무 마감</li>
+                            <li><strong>넷째 주 금요일:</strong> 안전예방캠페인 진행</li>
+                        </ul>
+                    </div>
+
+                    <!-- 카드 3 -->
+                    <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-2">
+                        <h3 class="font-bold text-bglBlue text-sm flex items-center gap-1.5">
+                            <i class="fa-solid fa-phone-flip text-bglTeal"></i> 비상 상황 시 행동 요령 (SOP)
+                        </h3>
+                        <p class="text-gray-600 leading-relaxed">
+                            승강장 추락이나 화재 등 비상 상황 발생 시, <strong>즉시 비상정지버튼(PES)</strong>을 누르고 종합관제실로 최우선 보고 후 승객 대피를 유도하세요.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: 유실물 관리 -->
+            <section id="tab-lost" class="tab-content hidden space-y-4">
+                <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-3">
+                    <h3 class="text-sm font-bold text-gray-800"><i class="fa-solid fa-plus-circle text-bglTeal mr-1"></i> 유실물 신규 습득 등록</h3>
+                    <div class="space-y-2 text-xs">
+                        <input id="lost-item-name" type="text" placeholder="습득물명 (예: 검정색 가죽 지갑)" class="w-full p-2.5 border rounded-xl focus:outline-none">
+                        <div class="grid grid-cols-2 gap-2">
+                            <select id="lost-location" class="p-2.5 border rounded-xl bg-white focus:outline-none">
+                                <option value="사상역">사상역</option>
+                                <option value="김해공항역">김해공항역</option>
+                                <option value="수로왕릉역">수로왕릉역</option>
+                                <option value="가야대역">가야대역</option>
+                                <option value="열차 내부">열차 내부</option>
+                            </select>
+                            <input id="lost-finder" type="text" placeholder="습득자/보관 위치" class="p-2.5 border rounded-xl focus:outline-none">
+                        </div>
+                        <button id="lost-submit-btn" onclick="addLostItem()" class="w-full bg-bglTeal text-white font-bold py-2.5 rounded-xl shadow hover:bg-teal-700 transition">구글 시트에 등록하기</button>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-2">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-xs font-bold text-gray-700">실시간 유실물 현황</h3>
+                        <button onclick="fetchLostItems()" class="text-[10px] text-bglBlue font-bold bg-blue-50 px-2 py-1 rounded-lg">새로고침</button>
+                    </div>
+                    <div id="lost-list" class="space-y-2">
+                        <p id="lost-loading" class="text-xs text-gray-400 text-center py-4">데이터 로딩 중...</p>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- 플로팅 하단 탭 네비게이션 (매뉴얼 탭 포함 4개 구조) -->
+        <nav class="absolute bottom-6 left-3 right-3 bg-white/95 backdrop-blur-md border border-gray-200 rounded-2xl px-2 py-2 flex justify-around items-center z-50 shadow-xl">
+            <button onclick="switchTab('home')" id="nav-home" class="nav-btn text-bglBlue flex flex-col items-center w-full py-1">
+                <i class="fa-solid fa-house text-lg"></i>
+                <span class="text-[10px] font-bold mt-1">홈/근무</span>
+            </button>
+            <button onclick="switchTab('manual')" id="nav-manual" class="nav-btn text-gray-400 flex flex-col items-center w-full py-1">
+                <i class="fa-solid fa-book text-lg"></i>
+                <span class="text-[10px] font-bold mt-1">신입가이드</span>
+            </button>
+            <button onclick="switchTab('lost')" id="nav-lost" class="nav-btn text-gray-400 flex flex-col items-center w-full py-1">
+                <i class="fa-solid fa-box-archive text-lg"></i>
+                <span class="text-[10px] font-bold mt-1">유실물</span>
+            </button>
+            <button onclick="switchTab('sop')" id="nav-sop" class="nav-btn text-gray-400 flex flex-col items-center w-full py-1">
+                <i class="fa-solid fa-kit-medical text-lg"></i>
+                <span class="text-[10px] font-bold mt-1">비상연락</span>
+            </button>
+        </nav>
+
+    </div>
+
+    <script>
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyvC6n6pHXOehMAGsmcE0BaCwSkv3G3RImcIT8sS_tlVnHqCZ9rxtSFZCTYsJUJHG8Y/exec";
+
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('current-time').innerText = now.toTimeString().split(' ')[0];
+        }, 1000);
+
+        const bglStations = [
+            "사상역", "괘법르네시떼역", "서부산유통지구역", "공항역", "덕두역", 
+            "등구역", "대저역", "평강역", "대사역", "불암역", 
+            "지내역", "김해대학역", "인제대역", "김해시청역", "성민역(부원)", 
+            "봉황역", "수릉원역(왕릉)", "박물관역", "연지공원역", "장신대역", "가야대역"
+        ];
+
+        function getSchedulesForDate(date) {
+            const year = date.getFullYear();
+            const month = date.getMonth();
+            const day = date.getDate();
+            let schedules = [];
+
+            if (day === 15) schedules.push("🛡️ 안전용품 점검");
+            if (day === 1 || day === 11 || day === 21) schedules.push("📊 수시 마감");
+            if (day === 4) schedules.push("⚠️ 안전점검의 날");
+
+            let campaignDate = new Date(year, month, 10);
+            if (campaignDate.getDay() === 0) campaignDate.setDate(campaignDate.getDate() + 1);
+            if (campaignDate.getDay() === 6) campaignDate.setDate(campaignDate.getDate() + 2);
+            if (day === campaignDate.getDate()) schedules.push("📢 철도예방캠페인");
+
+            const nextDay = new Date(year, month, day + 1);
+            if (nextDay.getDate() === 1) schedules.push("📁 월말 업무");
+
+            let fridayCount = 0, fourthFridayDay = 0;
+            for (let d = 1; d <= 31; d++) {
+                let tempDate = new Date(year, month, d);
+                if (tempDate.getMonth() !== month) break;
+                if (tempDate.getDay() === 5) {
+                    fridayCount++;
+                    if (fridayCount === 4) { fourthFridayDay = d; break; }
+                }
+            }
+            if (day === fourthFridayDay) schedules.push("🦺 안전예방캠페인 (4주차 금)");
+            return schedules;
+        }
+
+        let currentCalendarDate = new Date();
+        let selectedDate = new Date();
+
+        function renderCalendar() {
+            const year = currentCalendarDate.getFullYear();
+            const month = currentCalendarDate.getMonth();
+            document.getElementById('calendar-title').innerText = `${year}년 ${month + 1}월`;
+
+            const firstDayIndex = new Date(year, month, 1).getDay();
+            const lastDay = new Date(year, month + 1, 0).getDate();
+            const grid = document.getElementById('calendar-grid');
+            grid.innerHTML = '';
+
+            for (let i = 0; i < firstDayIndex; i++) {
+                grid.appendChild(document.createElement('div'));
+            }
+
+            const today = new Date();
+            for (let day = 1; day <= lastDay; day++) {
+                const cellDate = new Date(year, month, day);
+                const cell = document.createElement('div');
+                cell.className = "h-8 flex flex-col items-center justify-center rounded-lg text-xs font-medium cursor-pointer transition hover:bg-blue-50 relative";
+                
+                const span = document.createElement('span');
+                span.innerText = day;
+                cell.appendChild(span);
+
+                if (getSchedulesForDate(cellDate).length > 0) {
+                    const dot = document.createElement('span');
+                    dot.className = "w-1 h-1 bg-bglTeal rounded-full absolute bottom-1";
+                    cell.appendChild(dot);
+                }
+
+                if (year === today.getFullYear() && month === today.getMonth() && day === today.getDate()) {
+                    cell.className += " border border-bglBlue font-bold text-bglBlue";
+                }
+                if (year === selectedDate.getFullYear() && month === selectedDate.getMonth() && day === selectedDate.getDate()) {
+                    cell.className += " bg-bglBlue text-white font-bold rounded-lg shadow-sm";
+                }
+
+                cell.onclick = function() {
+                    selectedDate = new Date(year, month, day);
+                    renderCalendar();
+                    updateSelectedMemo();
+                };
+                grid.appendChild(cell);
+            }
+            updateSelectedMemo();
+        }
+
+        function updateSelectedMemo() {
+            const year = selectedDate.getFullYear();
+            const month = selectedDate.getMonth() + 1;
+            const day = selectedDate.getDate();
+            document.getElementById('selected-date-text').innerText = `${year}년 ${month}월 ${day}일 일정 및 점검`;
+
+            const schedules = getSchedulesForDate(selectedDate);
+            const container = document.getElementById('daily-schedules');
+            container.innerHTML = '';
+
+            let callCheckText = (day >= 1 && day <= 21) ? `📞 비상콜 점검 대상: [${day}번] ${bglStations[day - 1]}` : `📞 비상콜 점검 대상: 해당 없음`;
+
+            if (schedules.length > 0) {
+                schedules.forEach(sch => {
+                    const p = document.createElement('p');
+                    p.className = "font-semibold text-gray-800";
+                    p.innerText = `• ${sch}`;
+                    container.appendChild(p);
+                });
+            } else {
+                const p = document.createElement('p');
+                p.className = "text-gray-400";
+                p.innerText = "• 특이 업무 일정 없음";
+                container.appendChild(p);
+            }
+
+            const callP = document.createElement('p');
+            callP.className = "font-bold text-bglTeal mt-1 pt-1 border-t border-blue-100";
+            callP.innerText = `• ${callCheckText}`;
+            container.appendChild(callP);
+        }
+
+        function changeMonth(direction) {
+            currentCalendarDate.setMonth(currentCalendarDate.getMonth() + direction);
+            renderCalendar();
+        }
+
+        function calculateShift() {
+            const now = new Date();
+            const hours = now.getHours();
+            const baseDate = new Date(2026, 9, 25); 
+            baseDate.setHours(0, 0, 0, 0);
+
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            today.setHours(0, 0, 0, 0);
+
+            const diffDays = Math.floor((today.getTime() - baseDate.getTime()) / (1000 * 60 * 60 * 24));
+            const m = ((diffDays % 4) + 4) % 4;
+
+            const scheduleByMod = [
+                { day: 3, night: 4, off: 1, rest: 2 },
+                { day: 2, night: 3, off: 4, rest: 1 },
+                { day: 1, night: 2, off: 3, rest: 4 },
+                { day: 4, night: 1, off: 2, rest: 3 }
+            ];
+
+            const currentSched = scheduleByMod[m];
+            document.getElementById('team-day').innerText = currentSched.day + "팀";
+            document.getElementById('team-night').innerText = currentSched.night + "팀";
+            document.getElementById('team-off').innerText = currentSched.off + "팀";
+            document.getElementById('team-rest').innerText = currentSched.rest + "팀";
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-btn').forEach(el => {
+                el.classList.remove('text-bglBlue');
+                el.classList.add('text-gray-400');
+            });
+
+            document.getElementById('tab-' + tabName).classList.remove('hidden');
+            const activeNav = document.getElementById('nav-' + tabName);
+            activeNav.classList.remove('text-gray-400');
+            activeNav.classList.add('text-bglBlue');
+
+            if (tabName === 'lost') fetchLostItems();
+        }
+
+        function fetchLostItems() {
+            const list = document.getElementById('lost-list');
+            fetch(WEB_APP_URL + "?sheet=유실물")
+                .then(res => res.json())
+                .then(response => {
+                    if (response.status === 'success' && response.data.length > 0) {
+                        list.innerHTML = '';
+                        response.data.reverse().forEach(item => {
+                            const newItem = document.createElement('div');
+                            newItem.className = "p-2.5 bg-slate-50 rounded-xl flex justify-between items-center text-xs";
+                            newItem.innerHTML = `<div><p class="font-bold text-gray-800">${item['습득물명']}</p><p class="text-[10px] text-gray-400">${item['습득장소']}</p></div><span class="bg-blue-100 text-bglBlue text-[10px] px-2 py-0.5 rounded-full font-bold">보관중</span>`;
+                            list.appendChild(newItem);
+                        });
+                    } else {
+                        list.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">등록된 유실물이 없습니다.</p>';
+                    }
+                }).catch(() => { list.innerHTML = '<p class="text-xs text-red-400 text-center py-4">로딩 실패</p>'; });
+        }
+
+        function addLostItem() {
+            const name = document.getElementById('lost-item-name').value;
+            if (!name) { alert('습득물명을 입력해 주세요!'); return; }
+            fetch(WEB_APP_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ type: '유실물', name: name, location: document.getElementById('lost-location').value, finder: document.getElementById('lost-finder').value })
+            }).then(() => { alert('등록되었습니다.'); document.getElementById('lost-item-name').value = ''; fetchLostItems(); });
+        }
+
+        window.onload = function() {
+            renderCalendar();
+            calculateShift();
+            setInterval(calculateShift, 60000);
+        };
+    </script>
+</body>
+</html>
